@@ -1,59 +1,30 @@
-# Web
+# Web UI
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.1.2.
+Angular 22 front end for the order processing system.
 
-## Development server
-
-To start a local development server, run:
+**See the [root README](../README.md) for setup and how to run the whole system.**
 
 ```bash
-ng serve
+npm install
+npm start      # http://localhost:4200
+npm test       # component tests (vitest)
+npm run build
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+`/api` is proxied to the coordinator on `http://localhost:3000` via
+[proxy.conf.json](proxy.conf.json), so every API URL in the code is relative and works unchanged
+behind a reverse proxy in production.
 
-## Code scaffolding
+## Screens
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+- **Order list** — paginated, filterable by status, shows steps completed, with **Retry undo**
+  on needs-attention orders and **Mark shipped** on placed ones.
+- **Order detail** — every step with its retry count, the undo steps if the order was cancelled
+  (including the ones marked `SKIPPED` because that forward step never succeeded), and the full
+  per-attempt log.
 
-```bash
-ng generate component component-name
-```
+## Notes
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Angular 22 is **zoneless** — there is no `zone.js` dependency. Change detection is driven by
+signals, template events and the async pipe, so any state the template reads must live in a
+`signal()`. Assigning a plain class property in a subscribe callback will not re-render.
