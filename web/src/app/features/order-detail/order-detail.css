@@ -1,0 +1,46 @@
+.back {
+  display: inline-block;
+  margin-bottom: 1rem;
+  color: var(--text-dim);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.head h1 { font-size: 1.4rem; margin: 0; }
+.spacer { flex: 1; }
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  margin-bottom: 1rem;
+}
+.summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+}
+.summary .dim { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+
+.card { margin-bottom: 1rem; }
+
+.error-banner {
+  padding: 0.6rem 0.9rem;
+  margin-bottom: 1rem;
+  border-radius: 6px;
+  color: var(--bad);
+  border: 1px solid color-mix(in srgb, var(--bad) 40%, transparent);
+  background: color-mix(in srgb, var(--bad) 10%, transparent);
+  font-family: var(--mono);
+  font-size: 0.85rem;
+}
+
+.err { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.center { text-align: center; padding: 1.5rem; }

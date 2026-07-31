@@ -1,0 +1,84 @@
+<!-- Status strip. Doubles as the filter — click a pill to narrow the table. -->
+<div class="stats">
+  <button class="stat" [class]="statusFilter() === null ? 'stat active' : 'stat'" (click)="setStatus(null)">
+    <span class="dim">All</span>
+    <strong>{{ total() }}</strong>
+  </button>
+
+  @for (s of statuses; track s) {
+    <button class="stat" [class]="statusFilter() === s ? 'stat active' : 'stat'" (click)="setStatus(s)">
+      <span class="badge" [class]="'badge ' + s">{{ label(s) }}</span>
+      <strong>{{ count(s) }}</strong>
+    </button>
+  }
+</div>
+
+<div class="toolbar">
+  <button (click)="load(); loadStats()" [disabled]="loading()">
+    {{ loading() ? 'Loading…' : 'Refresh' }}
+  </button>
+  <button (click)="toggleAutoRefresh()" [class]="autoRefresh() ? 'primary' : ''">
+    Auto-refresh {{ autoRefresh() ? 'on' : 'off' }}
+  </button>
+  <span class="dim">{{ total() }} orders</span>
+</div>
+
+@if (error(); as err) {
+  <div class="error-banner">{{ err }}</div>
+}
+
+<div class="card">
+  <table>
+    <thead>
+      <tr>
+        <th>Order</th>
+        <th>SKU</th>
+        <th>Qty</th>
+        <th>Amount</th>
+        <th>Status</th>
+        <th>Steps</th>
+        <th>Updated</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- `track` is MANDATORY in @for. It tells Angular which DOM row maps to
+           which item, so a refresh patches rows instead of rebuilding the
+           whole table. Use a stable id — never $index for data that reorders. -->
+      @for (o of orders(); track o.orderId) {
+        <tr>
+          <td><a [routerLink]="['/orders', o.orderId]" class="mono">{{ o.orderId }}</a></td>
+          <td class="mono">{{ o.sku }}</td>
+          <td>{{ o.qty }}</td>
+          <td class="mono">{{ o.amount }}</td>
+          <td><span class="badge" [class]="'badge ' + o.status">{{ label(o.status) }}</span></td>
+          <td class="dim mono">{{ o.stepsDone }}/{{ o.stepsTotal }}</td>
+          <td class="dim">{{ o.updatedAt | date: 'HH:mm:ss' }}</td>
+          <td class="actions">
+            @if (o.status === 'NEEDS_ATTENTION') {
+              <button (click)="retry(o.orderId, $event)" [disabled]="busyOrderId() === o.orderId">
+                {{ busyOrderId() === o.orderId ? 'Retrying…' : 'Retry undo' }}
+              </button>
+            } @else if (o.status === 'PLACED') {
+              <button (click)="markShipped(o.orderId, $event)" [disabled]="busyOrderId() === o.orderId">
+                {{ busyOrderId() === o.orderId ? 'Working…' : 'Mark shipped' }}
+              </button>
+            }
+          </td>
+        </tr>
+      } @empty {
+        <!-- @empty has no AngularJS equivalent — it's the else-branch for an
+             empty collection, replacing a separate ng-if. -->
+        <tr><td colspan="8" class="dim center">No orders. Run <code>npm run ingest</code>.</td></tr>
+      }
+    </tbody>
+  </table>
+</div>
+
+<div class="pager">
+  <button (click)="goTo(1)" [disabled]="page() === 1">« First</button>
+  <button (click)="goTo(page() - 1)" [disabled]="page() === 1">‹ Prev</button>
+  <span class="dim">Page {{ page() }} of {{ totalPages() }}</span>
+  <button (click)="goTo(page() + 1)" [disabled]="page() >= totalPages()">Next ›</button>
+  <button (click)="goTo(totalPages())" [disabled]="page() >= totalPages()">Last »</button>
+</div>

@@ -1,0 +1,18 @@
+{
+  // Solution file. Builds nothing itself — it just tells `tsc -b` which
+  // projects exist so it can order them by their dependencies.
+  //
+  //   npx tsc -b            build everything, in order
+  //   npx tsc -b --watch    rebuild on change (run alongside `npm run dev`)
+  //   npx tsc -b --clean    delete all outputs
+  "files": [],
+  "references": [
+    { "path": "packages/shared" },
+    { "path": "services/coordinator" },
+    { "path": "services/order" },
+    { "path": "services/inventory" },
+    { "path": "services/payment" },
+    { "path": "services/shipping" },
+    { "path": "services/notification" }
+  ]
+}

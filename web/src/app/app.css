@@ -1,0 +1,21 @@
+.topbar {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.9rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+.brand:hover { text-decoration: none; color: var(--accent); }
+
+.shell {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}

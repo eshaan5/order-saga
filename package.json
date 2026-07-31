@@ -1,0 +1,48 @@
+{
+  "name": "order-saga",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Distributed order processing system — saga coordinator + four services + notifications",
+  "engines": {
+    "node": ">=22.22.3"
+  },
+  "workspaces": [
+    "packages/*",
+    "services/*"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "build:watch": "tsc -b --watch",
+    "typecheck": "tsc -b",
+    "clean": "tsc -b --clean",
+
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:reset": "docker compose down -v && docker compose up -d",
+    "db:shell": "docker compose exec mysql mysql -uroot -proot",
+    "seed": "npm run seed -w @saga/inventory",
+
+    "dev:order": "npm run dev -w @saga/order",
+    "dev:inventory": "npm run dev -w @saga/inventory",
+    "dev:payment": "npm run dev -w @saga/payment",
+    "dev:shipping": "npm run dev -w @saga/shipping",
+    "dev:coordinator": "npm run dev -w @saga/coordinator",
+    "dev:notification": "npm run dev -w @saga/notification",
+    "dev:services": "concurrently -n order,inventory,payment,shipping -c blue,green,yellow,magenta \"npm:dev:order\" \"npm:dev:inventory\" \"npm:dev:payment\" \"npm:dev:shipping\"",
+
+    "ingest": "npm run ingest -w @saga/coordinator",
+    "stats": "curl -s localhost:3000/api/stats",
+
+    "test": "vitest run",
+    "test:unit": "vitest run test/unit",
+    "test:integration": "vitest run test/integration",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.5",
+    "concurrently": "^9.0.1",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}

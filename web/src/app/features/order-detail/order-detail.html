@@ -1,0 +1,116 @@
+<a routerLink="/" class="back">‹ All orders</a>
+
+@if (loading()) {
+  <p class="dim">Loading…</p>
+} @else if (error(); as err) {
+  <div class="error-banner">{{ err }}</div>
+} @else if (detail(); as d) {
+
+  <div class="head">
+    <h1 class="mono">{{ d.order.order_id }}</h1>
+    <span class="badge" [class]="'badge ' + d.order.status">{{ label(d.order.status) }}</span>
+
+    <span class="spacer"></span>
+
+    @if (d.order.status === 'NEEDS_ATTENTION') {
+      <button class="primary" (click)="retry()" [disabled]="busy()">
+        {{ busy() ? 'Retrying…' : 'Retry failed undo' }}
+      </button>
+    } @else if (d.order.status === 'PLACED') {
+      <button class="primary" (click)="markShipped()" [disabled]="busy()">
+        {{ busy() ? 'Working…' : 'Mark shipped' }}
+      </button>
+    }
+  </div>
+
+  <!-- Summary. fail_at / comp_fail_at are shown because they explain WHY an
+       order failed — without them a cancelled order looks like a real bug. -->
+  <div class="summary card">
+    <div><span class="dim">SKU</span><span class="mono">{{ d.order.sku }}</span></div>
+    <div><span class="dim">Qty</span><span>{{ d.order.qty }}</span></div>
+    <div><span class="dim">Amount</span><span class="mono">{{ d.order.amount }}</span></div>
+    <div><span class="dim">Coordinator passes</span><span>{{ d.order.attempt_count }}</span></div>
+    <div>
+      <span class="dim">Injected step failure</span>
+      <span class="mono">{{ d.order.fail_at ?? '—' }}</span>
+    </div>
+    <div>
+      <span class="dim">Injected undo failure</span>
+      <span class="mono">{{ d.order.comp_fail_at ?? '—' }}</span>
+    </div>
+  </div>
+
+  @if (d.order.last_error) {
+    <div class="error-banner">{{ d.order.last_error }}</div>
+  }
+
+  <div class="card">
+    <div class="card-header">Steps — all four attempted at the same time</div>
+    <table>
+      <thead>
+        <tr><th>Step</th><th>Status</th><th>Tries</th><th>Idempotency key</th><th>Finished</th><th>Error</th></tr>
+      </thead>
+      <tbody>
+        @for (s of forwardSteps(); track s.step) {
+          <tr>
+            <td class="mono">{{ s.step }}</td>
+            <td [class]="'s-' + s.status"><strong>{{ s.status }}</strong></td>
+            <td>{{ s.attempts }}</td>
+            <td class="mono dim">{{ s.idempotency_key }}</td>
+            <td class="dim">{{ s.finished_at ? (s.finished_at | date: 'HH:mm:ss.SSS') : '—' }}</td>
+            <td class="dim err">{{ s.last_error ?? '' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Only rendered when something was actually rolled back. SKIPPED rows are
+       meaningful output: they say the forward step never succeeded, so there
+       was nothing to undo. That is requirement 3 visible in the data. -->
+  @if (wasCompensated()) {
+    <div class="card">
+      <div class="card-header">Undo steps — only the steps that actually finished are undone</div>
+      <table>
+        <thead>
+          <tr><th>Step</th><th>Status</th><th>Tries</th><th>Idempotency key</th><th>Finished</th><th>Error</th></tr>
+        </thead>
+        <tbody>
+          @for (s of compensationSteps(); track s.step) {
+            <tr>
+              <td class="mono">{{ s.step }}</td>
+              <td [class]="'s-' + s.status"><strong>{{ s.status }}</strong></td>
+              <td>{{ s.attempts }}</td>
+              <td class="mono dim">{{ s.idempotency_key }}</td>
+              <td class="dim">{{ s.finished_at ? (s.finished_at | date: 'HH:mm:ss.SSS') : '—' }}</td>
+              <td class="dim err">{{ s.last_error ?? '' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="card">
+    <div class="card-header">Attempt log — every individual try, in order</div>
+    <table>
+      <thead>
+        <tr><th>Step</th><th>Try</th><th>Outcome</th><th>Took</th><th>At</th><th>Error</th></tr>
+      </thead>
+      <tbody>
+        @for (a of d.attempts; track a.step + ':' + a.attempt_no) {
+          <tr>
+            <td class="mono">{{ a.step }}</td>
+            <td>#{{ a.attempt_no }}</td>
+            <td [class]="'s-' + a.outcome"><strong>{{ a.outcome }}</strong></td>
+            <td class="dim">{{ a.duration_ms }}ms</td>
+            <td class="dim">{{ a.started_at | date: 'HH:mm:ss.SSS' }}</td>
+            <td class="dim err">{{ a.error_message ?? '' }}</td>
+          </tr>
+        } @empty {
+          <tr><td colspan="6" class="dim center">No attempts recorded.</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

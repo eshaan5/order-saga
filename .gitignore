@@ -1,0 +1,15 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+.env
+.env.local
+
+# Angular
+.angular/
+web/dist/
+
+npm-debug.log*
+.DS_Store
+.idea/
+.vscode/

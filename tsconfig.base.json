@@ -1,0 +1,46 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+
+    // "nodenext", not "node"/"node10". The old value is Node's PRE-ESM
+    // resolution algorithm: it reads only `main` and is blind to the `exports`
+    // field, so it can silently resolve a modern dual-published package to the
+    // wrong entry point. TypeScript 5 deprecates it and 7 removes it.
+    //
+    // nodenext implements Node's real algorithm. Because no package.json here
+    // declares "type": "module", every file is still classified as CommonJS
+    // and the emitted output is unchanged — this is a resolution fix, not a
+    // move to ESM.
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+
+    // Cross-package resolution is handled by TypeScript PROJECT REFERENCES
+    // (see the root tsconfig.json and each package's "references"), not by a
+    // path alias. A path alias pointing at shared's *source* would drag files
+    // from outside each service's rootDir into its compilation, which tsc
+    // rejects with TS6059.
+    //
+    // With references, `tsc -b` builds shared first and services resolve
+    // @saga/shared to its emitted .d.ts via the node_modules symlink — the
+    // same way they'd resolve any published package.
+    "composite": true,
+    "incremental": true,
+
+    "strict": true,
+    // Surfaces the case that actually bites in this codebase: reading a row
+    // that isn't there. `rows[0]` is typed as possibly-undefined, so you're
+    // forced to handle "no such order" instead of crashing on `.status`.
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true
+  }
+}

@@ -1,0 +1,50 @@
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.7rem;
+  background: var(--surface);
+}
+.stat.active { border-color: var(--accent); background: var(--surface-2); }
+.stat strong { font-variant-numeric: tabular-nums; }
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.error-banner {
+  padding: 0.6rem 0.9rem;
+  margin-bottom: 1rem;
+  border-radius: 6px;
+  color: var(--bad);
+  border: 1px solid color-mix(in srgb, var(--bad) 40%, transparent);
+  background: color-mix(in srgb, var(--bad) 10%, transparent);
+}
+
+.actions { text-align: right; white-space: nowrap; }
+.center { text-align: center; padding: 2rem; }
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  justify-content: center;
+}
+
+code {
+  font-family: var(--mono);
+  background: var(--surface-2);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
