@@ -1,0 +1,54 @@
+# Continuous Integration.
+#
+# Every push builds and tests the project on a FRESH Ubuntu machine that has
+# never seen this code. That is the whole value: it proves a clean clone works,
+# rather than proving it works on a laptop that already has node_modules,
+# Docker running, and possibly an uncommitted file.
+
+name: CI
+
+# WHAT STARTS THIS RUN.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Lets you trigger a run by hand from the Actions tab — useful when you want
+  # to re-run after changing something outside the repo.
+  workflow_dispatch:
+
+jobs:
+  # Job name. It shows up in the GitHub UI and in the badge.
+  build-and-unit-test:
+    # The machine. A brand new VM, discarded when the job ends.
+    runs-on: ubuntu-latest
+
+    steps:
+      # `uses:` runs a reusable action someone else published.
+      # Without this the runner has an empty disk — it does not have your code.
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Read the version from .nvmrc instead of hardcoding it here, so the
+          # two can never drift apart.
+          node-version-file: '.nvmrc'
+          # Caches ~/.npm keyed on package-lock.json. Turns a ~40s install into
+          # a few seconds on runs where dependencies have not changed.
+          cache: 'npm'
+
+      # `npm ci`, NOT `npm install`.
+      #   ci      — wipes node_modules and installs EXACTLY the lockfile. Fails
+      #             if package.json and the lock disagree.
+      #   install — may quietly update the lockfile to satisfy semver ranges.
+      # In CI you want the second behaviour to be an error, not a silent fixup.
+      - name: Install dependencies
+        run: npm ci
+
+      # Compiles every package in dependency order via project references.
+      # This alone catches a whole class of "forgot to commit a file" bugs.
+      - name: Build all packages
+        run: npx tsc -b
+
+      # Pure functions — no database, no network, no services needed.
+      - name: Unit tests
+        run: npm run test:unit
