@@ -1,5 +1,7 @@
 # Order Processing System — Saga Coordinator
 
+[![CI](https://github.com/eshaan5/order-saga/actions/workflows/ci.yml/badge.svg)](https://github.com/eshaan5/order-saga/actions/workflows/ci.yml)
+
 A distributed order processing system. Four services each own their own data; a coordinator drives
 every order through all four **in parallel**, and rolls back the ones that succeeded if any step
 fails.

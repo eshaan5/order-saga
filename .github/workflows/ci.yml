@@ -52,3 +52,123 @@ jobs:
       # Pure functions — no database, no network, no services needed.
       - name: Unit tests
         run: npm run test:unit
+
+  # ---------------------------------------------------------------------------
+  # Angular component tests.
+  #
+  # A separate job because web/ lives OUTSIDE the npm workspace and has its own
+  # dependency tree, so it needs its own install and its own cache key. Jobs run
+  # in parallel, so this costs no extra wall-clock time.
+  # ---------------------------------------------------------------------------
+  web-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm ci
+        working-directory: web
+
+      # --watch=false explicitly: a watching test runner never exits, so the job
+      # would hang until the 6-hour timeout instead of failing in 30 seconds.
+      - name: Angular component tests
+        run: npx ng test --watch=false
+        working-directory: web
+
+  # ---------------------------------------------------------------------------
+  # Integration tests — the ones that prove the interesting behaviour.
+  #
+  # These need a real MySQL and the four services actually running, because
+  # every bug worth catching here lives in the SQL or the HTTP behaviour. A
+  # mocked version would pass while the system was broken.
+  # ---------------------------------------------------------------------------
+  integration-test:
+    runs-on: ubuntu-latest
+
+    # SERVICE CONTAINERS: GitHub starts these alongside the job and waits for
+    # their health checks to pass before running a single step. Same idea as
+    # docker-compose.yml, declared inline.
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - run: npm ci
+      - run: npx tsc -b
+
+      # Installed explicitly rather than assumed — GitHub has trimmed
+      # preinstalled packages from the runner image before.
+      - name: Install MySQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq mysql-client
+
+      # Service containers CANNOT mount /docker-entrypoint-initdb.d the way
+      # Compose does, so the schema is applied by hand instead.
+      - name: Apply schema
+        run: |
+          for f in db/00-schemas.sql db/01-saga.sql db/02-services.sql; do
+            echo "applying $f"
+            mysql -h 127.0.0.1 -uroot -proot < "$f"
+          done
+
+      - name: Seed inventory
+        run: npm run seed
+
+      - name: Start the four services
+        run: |
+          mkdir -p /tmp/logs
+          for s in order inventory payment shipping; do
+            nohup npx tsx "services/$s/src/index.ts" > "/tmp/logs/$s.log" 2>&1 &
+          done
+          # Poll health rather than sleeping a fixed amount. A fixed sleep is
+          # either too short (flaky on a slow runner) or too long (wasted on
+          # every single run, forever).
+          for port in 3001 3002 3003 3004; do
+            for i in $(seq 1 30); do
+              curl -sf "localhost:$port/health" >/dev/null && break
+              if [ "$i" = 30 ]; then
+                echo "service on port $port never became healthy"
+                tail -30 /tmp/logs/*.log
+                exit 1
+              fi
+              sleep 1
+            done
+            echo "port $port healthy"
+          done
+
+      - name: Integration tests
+        run: npm run test:integration
+
+      # Without this a failure shows only the test assertion and none of the
+      # service output that would explain it.
+      - name: Dump service logs on failure
+        if: failure()
+        run: tail -50 /tmp/logs/*.log
