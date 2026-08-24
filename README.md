@@ -166,22 +166,61 @@ npm test                   # both
 
 ## How it works
 
-```
-data/orders_bulk.csv
-     │  streamed, batched INSERT IGNORE (re-load = no-op)
-     ▼
- MySQL `saga` schema ── work queue + saga state + audit trail
-     │  SELECT … FOR UPDATE SKIP LOCKED  (claim + lease)
-     ▼
- Coordinator × N ──┬── HTTP ──► order      ─┐
-                   ├── HTTP ──► inventory   │ each: own Express app,
-                   ├── HTTP ──► payment     │ own MySQL schema
-                   └── HTTP ──► shipping   ─┘
-                   all four in parallel · timeout · retry · Idempotency-Key
+```mermaid
+flowchart LR
+    CSV[/"orders_bulk.csv<br/>2,500 orders"/]
+    CSV -->|"streamed<br/>batched INSERT IGNORE"| DB
 
- Notification × N ── cron 15m ──► claims shipped orders, UNIQUE(order_id)
- Angular ── HTTP ──► coordinator read API
+    DB[("MySQL — saga schema<br/>work queue · state · audit trail")]
+    DB -->|"FOR UPDATE SKIP LOCKED<br/>+ lease"| CO
+
+    CO["Coordinator<br/>N instances"]
+
+    CO -->|"all four at once<br/>timeout · retry · Idempotency-Key"| O
+    CO --> I
+    CO --> P
+    CO --> S
+
+    O["Order"] --> ODB[("svc_order")]
+    I["Inventory"] --> IDB[("svc_inventory")]
+    P["Payment"] --> PDB[("svc_payment")]
+    S["Shipping"] --> SDB[("svc_shipping")]
+
+    UI["Angular UI"] -->|"list · detail · retry · mark shipped"| CO
+    NS["Notification<br/>cron 15m"] -->|"reads shipped orders over HTTP"| CO
+    NS --> NDB[("svc_notification")]
 ```
+
+Four separate databases is the whole reason this is a saga. With one shared database an order
+would be a single `BEGIN … COMMIT` and none of this design would exist.
+
+### Order lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING: ingested from CSV
+    PENDING --> IN_PROGRESS: claimed, lease taken
+
+    IN_PROGRESS --> PLACED: all four steps succeeded
+    IN_PROGRESS --> COMPENSATING: any step failed
+
+    COMPENSATING --> CANCELLED: every needed undo succeeded
+    COMPENSATING --> NEEDS_ATTENTION: an undo exhausted its retries
+    NEEDS_ATTENTION --> COMPENSATING: manual retry (UI button)
+
+    PLACED --> SHIPPED: human clicks Mark shipped
+
+    CANCELLED --> [*]
+    SHIPPED --> [*]: notification sent, exactly once
+```
+
+Two things worth reading off that diagram:
+
+- **`NEEDS_ATTENTION` loops back into `COMPENSATING`.** That loop is requirement 7 — an undo that
+  keeps failing is flagged for a human rather than dropped, and the Retry button re-enters the
+  compensation phase.
+- **`SHIPPED` is reachable only from `PLACED`, and only via a person.** Nothing in the saga produces
+  it. That is how the notification service stays outside the order flow entirely.
 
 ### The two mechanisms that carry the design
 
